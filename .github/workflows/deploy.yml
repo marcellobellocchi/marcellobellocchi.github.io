@@ -1,4 +1,4 @@
-name: Static compilation
+name: Static compilation and deployment
 
 on:
   push:
@@ -56,9 +56,6 @@ jobs:
           APP_KEY=
           APP_DEBUG=false
           APP_URL=https://marcellobellocchi.github.io
-
-          LOG_CHANNEL=stack
-          LOG_LEVEL=error
 
           DB_CONNECTION=sqlite
           DB_DATABASE=:memory:
