@@ -1,0 +1,86 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, xml, ctype, iconv
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build assets
+        run: npm run build
+
+      - name: Create CI environment
+        run: |
+          cat > .env << 'EOF'
+          APP_NAME="GitHub Pages build"
+          APP_ENV=production
+          APP_KEY=
+          APP_DEBUG=false
+          APP_URL=http://localhost
+
+          LOG_CHANNEL=stack
+          LOG_LEVEL=error
+
+          DB_CONNECTION=sqlite
+          DB_DATABASE=:memory:
+
+          CACHE_STORE=array
+          SESSION_DRIVER=array
+          QUEUE_CONNECTION=sync
+          EOF
+
+          php artisan key:generate --force
+
+      - name: Export Laravel site
+        run: php artisan export
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
