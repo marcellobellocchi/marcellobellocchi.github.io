@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -37,9 +37,9 @@ jobs:
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install npm dependencies
@@ -70,7 +70,26 @@ jobs:
       - name: Export Laravel site
         run: php artisan export
 
-      - name: Setup Pages
+      - name: Checkout notes repository
+        uses: actions/checkout@v6
+        with:
+          repository: marcellobellocchi/notes
+          path: notes-source
+
+      - name: Install Quartz dependencies
+        working-directory: notes-source
+        run: npm ci
+
+      - name: Build Quartz
+        working-directory: notes-source
+        run: npx quartz build
+
+      - name: Publish notes
+        run: |
+          mkdir -p dist/notes
+          cp -r notes-source/public/. dist/notes/
+
+      - name: Configure Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact

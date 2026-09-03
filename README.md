@@ -1,2 +1,7 @@
-Si, probabilmente per un sito statico questa repo è overengineered, ma mi piace l'overengineering.
-stacce
+da aggiungere:
+
+cv, linkedin, github, email, modalità chiara/scura
+
+recuperare informazioni per cv (educazione, lingue, it knowledge e sistemismo, docker e homeserver)
+
+opendyslexic?
