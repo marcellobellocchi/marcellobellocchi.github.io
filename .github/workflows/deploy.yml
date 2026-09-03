@@ -89,7 +89,7 @@ jobs:
 
           rm -rf quartz-build/content
           mkdir -p quartz-build/content
-          cp -r notes-source/. quartz-build/content/
+          cp -r notes-source/content/. quartz-build/content/
 
       - name: Install Quartz dependencies
         working-directory: quartz-build
