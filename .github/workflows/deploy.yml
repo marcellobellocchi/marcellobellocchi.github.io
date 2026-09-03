@@ -58,10 +58,19 @@ jobs:
           ref: v5
           path: quartz-build
 
+      - name: Checkout website configuration
+        if: ${{ inputs.notes_only == true }}
+        uses: actions/checkout@v6
+        with:
+          path: website-source
+          sparse-checkout: |
+            quartz
+          sparse-checkout-cone-mode: true
+
       - name: Configure Quartz
         if: ${{ inputs.notes_only == true }}
         run: |
-          cp quartz/quartz.config.default.yaml quartz-build/quartz.config.default.yaml
+          cp website-source/quartz/quartz.config.default.yaml quartz-build/quartz.config.default.yaml
 
           rm -rf quartz-build/content
           mkdir -p quartz-build/content
