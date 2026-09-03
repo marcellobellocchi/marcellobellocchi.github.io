@@ -204,28 +204,35 @@ jobs:
         run: |
           cd dist
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           if [ "${{ inputs.notes_only }}" = "true" ]; then
-            # Notes-only build: dist is already the pages branch checkout.
-            git checkout pages
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            git add -A
+
+            if git diff --cached --quiet; then
+              echo "No changes to deploy."
+              exit 0
+            fi
+
+            git commit -m "Deploy notes"
+            git push origin pages
+
           else
-            # Full build: dist was generated from scratch.
             git init
             git checkout -B pages
-            git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            git add -A
+            git commit -m "Deploy site"
+
+            git remote add origin \
+              "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+
+            git push --force origin pages
           fi
-
-          git add -A
-
-          if git diff --cached --quiet; then
-            echo "No changes to deploy."
-            exit 0
-          fi
-
-          git commit -m "Deploy site"
-          git push --force origin pages
 
       # --------------------------------------------------
       # GITHUB PAGES
