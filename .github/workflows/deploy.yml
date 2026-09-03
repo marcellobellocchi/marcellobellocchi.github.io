@@ -5,8 +5,16 @@ on:
     branches:
       - main
 
+  workflow_dispatch:
+    inputs:
+      notes_only:
+        description: "Only rebuild /notes"
+        required: false
+        default: false
+        type: boolean
+
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -16,39 +24,106 @@ concurrency:
 
 jobs:
   deploy:
+    runs-on: ubuntu-latest
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
-    runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+
+      # --------------------------------------------------
+      # NOTES-ONLY DEPLOYMENT
+      # --------------------------------------------------
+
+      - name: Checkout current deployed site
+        if: ${{ inputs.notes_only == true }}
+        uses: actions/checkout@v6
+        with:
+          ref: pages
+          path: dist
+
+      - name: Checkout notes repository
+        if: ${{ inputs.notes_only == true }}
+        uses: actions/checkout@v6
+        with:
+          repository: marcellobellocchi/notes
+          path: notes-source
+
+      - name: Checkout Quartz
+        if: ${{ inputs.notes_only == true }}
+        uses: actions/checkout@v6
+        with:
+          repository: jackyzha0/quartz
+          ref: v5
+          path: quartz-build
+
+      - name: Configure Quartz
+        if: ${{ inputs.notes_only == true }}
+        run: |
+          cp quartz/quartz.config.ts quartz-build/quartz.config.ts
+          cp quartz/quartz.layout.ts quartz-build/quartz.layout.ts
+
+          rm -rf quartz-build/content
+          mkdir -p quartz-build/content
+
+          cp -r notes-source/content/. quartz-build/content/
+
+      - name: Install Quartz dependencies
+        if: ${{ inputs.notes_only == true }}
+        working-directory: quartz-build
+        run: npm ci
+
+      - name: Build Quartz
+        if: ${{ inputs.notes_only == true }}
+        working-directory: quartz-build
+        run: npx quartz build
+
+      - name: Replace notes
+        if: ${{ inputs.notes_only == true }}
+        run: |
+          rm -rf dist/notes
+          mkdir -p dist/notes
+          cp -r quartz-build/public/. dist/notes/
+
+
+      # --------------------------------------------------
+      # FULL WEBSITE DEPLOYMENT
+      # --------------------------------------------------
+
+      - name: Checkout website
+        if: ${{ inputs.notes_only != true }}
         uses: actions/checkout@v6
 
       - name: Setup PHP
+        if: ${{ inputs.notes_only != true }}
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
+          php-version: "8.5"
           extensions: mbstring, xml, ctype, iconv
           coverage: none
 
       - name: Install Composer dependencies
+        if: ${{ inputs.notes_only != true }}
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: Setup Node
+        if: ${{ inputs.notes_only != true }}
         uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
 
       - name: Install npm dependencies
+        if: ${{ inputs.notes_only != true }}
         run: npm ci
 
       - name: Build assets
+        if: ${{ inputs.notes_only != true }}
         run: npm run build
 
       - name: Create CI environment
+        if: ${{ inputs.notes_only != true }}
         run: |
           cat > .env << 'EOF'
           APP_NAME="GitHub Pages build"
@@ -68,47 +143,81 @@ jobs:
           php artisan key:generate --force
 
       - name: Export Laravel site
+        if: ${{ inputs.notes_only != true }}
         run: php artisan export
 
       - name: Checkout notes repository
+        if: ${{ inputs.notes_only != true }}
         uses: actions/checkout@v6
         with:
           repository: marcellobellocchi/notes
           path: notes-source
 
       - name: Checkout Quartz
-        uses: actions/checkout@v4
+        if: ${{ inputs.notes_only != true }}
+        uses: actions/checkout@v6
         with:
           repository: jackyzha0/quartz
           ref: v5
           path: quartz-build
 
       - name: Configure Quartz
+        if: ${{ inputs.notes_only != true }}
         run: |
-          cp quartz/quartz.config.default.yaml quartz-build/quartz.config.default.yaml
-
+          cp quartz/quartz.config.ts quartz-build/quartz.config.default.yaml
           rm -rf quartz-build/content
           mkdir -p quartz-build/content
+
           cp -r notes-source/content/. quartz-build/content/
 
       - name: Install Quartz dependencies
+        if: ${{ inputs.notes_only != true }}
         working-directory: quartz-build
         run: npm ci
 
       - name: Build Quartz
+        if: ${{ inputs.notes_only != true }}
         working-directory: quartz-build
         run: npx quartz build
 
       - name: Publish notes
+        if: ${{ inputs.notes_only != true }}
         run: |
           mkdir -p dist/notes
           cp -r quartz-build/public/. dist/notes/
+
+
+      # --------------------------------------------------
+      # SAVE GENERATED SITE
+      # --------------------------------------------------
+
+      - name: Update pages branch
+        run: |
+          cd dist
+
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B pages
+
+          git add -A
+          git commit -m "Deploy site"
+
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+
+          git push --force origin pages
+
+
+      # --------------------------------------------------
+      # GITHUB PAGES
+      # --------------------------------------------------
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ./dist
 
