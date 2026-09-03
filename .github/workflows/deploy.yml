@@ -207,7 +207,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git checkout pages
+          if [ "${{ inputs.notes_only }}" = "true" ]; then
+            # Notes-only build: dist is already the pages branch checkout.
+            git checkout pages
+          else
+            # Full build: dist was generated from scratch.
+            git init
+            git checkout -B pages
+            git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          fi
 
           git add -A
 
@@ -217,7 +225,7 @@ jobs:
           fi
 
           git commit -m "Deploy site"
-          git push origin pages
+          git push --force origin pages
 
       # --------------------------------------------------
       # GITHUB PAGES
