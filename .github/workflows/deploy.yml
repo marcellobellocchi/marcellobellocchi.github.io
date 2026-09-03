@@ -61,7 +61,7 @@ jobs:
       - name: Configure Quartz
         if: ${{ inputs.notes_only == true }}
         run: |
-          cp quartz/quartz.config.ts quartz-build/quartz.config.default.yaml
+          cp quartz/quartz.config.default.yaml quartz-build/quartz.config.default.yaml
 
           rm -rf quartz-build/content
           mkdir -p quartz-build/content
