@@ -142,10 +142,12 @@ jobs:
           mkdir -p quartz-build/content
 
           if [ "${{ inputs.notes_only }}" = "true" ]; then
-            cp -r notes-source/content/. quartz-build/content/
+            cp -r notes-source/. quartz-build/content/
           else
             cp -r notes-source/. quartz-build/content/
           fi
+
+          rm -f quartz-build/content/README.md
 
       - name: Install Quartz dependencies
         working-directory: quartz-build
