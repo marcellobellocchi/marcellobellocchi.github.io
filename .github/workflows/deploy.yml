@@ -32,16 +32,21 @@ jobs:
 
     steps:
 
-      # --------------------------------------------------
-      # NOTES-ONLY DEPLOYMENT
-      # --------------------------------------------------
+      # ==================================================
+      # CHECKOUT CURRENT PAGES STATE
+      # ==================================================
 
       - name: Checkout current deployed site
-        if: ${{ inputs.notes_only == true }}
         uses: actions/checkout@v6
         with:
           ref: pages
           path: dist
+          fetch-depth: 0
+
+
+      # ==================================================
+      # NOTES-ONLY DEPLOYMENT
+      # ==================================================
 
       - name: Checkout notes repository
         if: ${{ inputs.notes_only == true }}
@@ -70,7 +75,8 @@ jobs:
       - name: Configure Quartz
         if: ${{ inputs.notes_only == true }}
         run: |
-          cp website-source/quartz/quartz.config.default.yaml quartz-build/quartz.config.default.yaml
+          cp website-source/quartz/quartz.config.default.yaml \
+             quartz-build/quartz.config.default.yaml
 
           rm -rf quartz-build/content
           mkdir -p quartz-build/content
@@ -95,9 +101,9 @@ jobs:
           cp -r quartz-build/public/. dist/notes/
 
 
-      # --------------------------------------------------
+      # ==================================================
       # FULL WEBSITE DEPLOYMENT
-      # --------------------------------------------------
+      # ==================================================
 
       - name: Checkout website
         if: ${{ inputs.notes_only != true }}
@@ -172,7 +178,8 @@ jobs:
       - name: Configure Quartz
         if: ${{ inputs.notes_only != true }}
         run: |
-          cp quartz/quartz.config.default.yaml quartz-build/quartz.config.default.yaml
+          cp quartz/quartz.config.default.yaml \
+             quartz-build/quartz.config.default.yaml
 
           rm -rf quartz-build/content
           mkdir -p quartz-build/content
@@ -189,54 +196,57 @@ jobs:
         working-directory: quartz-build
         run: npx quartz build
 
-      - name: Publish notes
+
+      # ==================================================
+      # REPLACE GENERATED SITE
+      # ==================================================
+
+      - name: Replace generated website
         if: ${{ inputs.notes_only != true }}
         run: |
+          # Preserve the Git repository
+          find dist -mindepth 1 -maxdepth 1 \
+            ! -name .git \
+            -exec rm -rf {} +
+
+          # Copy the newly generated Laravel site
+          cp -r build/. dist/
+
+          # Add freshly generated notes
           mkdir -p dist/notes
           cp -r quartz-build/public/. dist/notes/
 
 
-      # --------------------------------------------------
-      # SAVE GENERATED SITE
-      # --------------------------------------------------
+      # ==================================================
+      # COMMIT AND UPDATE PAGES
+      # ==================================================
 
       - name: Update pages branch
         run: |
           cd dist
 
-          if [ "${{ inputs.notes_only }}" = "true" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-            git add -A
+          git add -A
 
-            if git diff --cached --quiet; then
-              echo "No changes to deploy."
-              exit 0
-            fi
-
-            git commit -m "Deploy notes"
-            git push origin pages
-
-          else
-            git init
-            git checkout -B pages
-
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-            git add -A
-            git commit -m "Deploy site"
-
-            git remote add origin \
-              "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
-
-            git push --force origin pages
+          if git diff --cached --quiet; then
+            echo "No changes to deploy."
+            exit 0
           fi
 
-      # --------------------------------------------------
+          if [ "${{ inputs.notes_only }}" = "true" ]; then
+            git commit -m "Deploy notes"
+          else
+            git commit -m "Deploy site"
+          fi
+
+          git push origin HEAD:pages
+
+
+      # ==================================================
       # GITHUB PAGES
-      # --------------------------------------------------
+      # ==================================================
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
