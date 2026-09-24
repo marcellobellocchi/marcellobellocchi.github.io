@@ -33,7 +33,7 @@ jobs:
     steps:
 
       # ==================================================
-      # FULL WEBSITE: CHECKOUT SOURCE
+      # FULL WEBSITE SOURCE
       # ==================================================
 
       - name: Checkout website
@@ -42,7 +42,7 @@ jobs:
 
 
       # ==================================================
-      # FULL WEBSITE: BUILD
+      # FULL WEBSITE BUILD
       # ==================================================
 
       - name: Setup PHP
@@ -98,7 +98,7 @@ jobs:
 
 
       # ==================================================
-      # NOTES SOURCE
+      # NOTES
       # ==================================================
 
       - name: Checkout notes repository
@@ -160,18 +160,36 @@ jobs:
       # CHECKOUT CURRENT PAGES STATE
       # ==================================================
 
-      - name: Checkout current deployed site
+      - name: Checkout pages branch
         uses: actions/checkout@v6
         with:
           ref: pages
           path: pages-repo
           fetch-depth: 0
-          ssh-key: ${{ secrets.PAGES_DEPLOY_KEY }}
+          persist-credentials: false
+
+
+      # ==================================================
+      # CONFIGURE SSH FOR DEPLOY KEY
+      # ==================================================
+
+      - name: Load pages deploy key
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.PAGES_DEPLOY_KEY }}
+
+
+      # ==================================================
+      # CONFIGURE PAGES REMOTE
+      # ==================================================
 
       - name: Configure pages remote
+        working-directory: pages-repo
         run: |
-          git -C pages-repo remote set-url origin \
+          git remote set-url origin \
             "git@github.com:${{ github.repository }}.git"
+
+          git remote -v
 
 
       # ==================================================
@@ -198,8 +216,8 @@ jobs:
             # FULL DEPLOYMENT
             # --------------------------------------------
 
-            # Replace the generated site while preserving
-            # the pages repository's .git directory.
+            # Replace the generated Laravel site.
+            # Keep .git so that we preserve pages history.
 
             rsync -a \
               --delete \
@@ -207,7 +225,7 @@ jobs:
               dist/ \
               pages-repo/
 
-            # Add freshly generated notes.
+            # Replace notes with the freshly built version.
 
             rm -rf pages-repo/notes
             mkdir -p pages-repo/notes
@@ -218,13 +236,12 @@ jobs:
 
 
       # ==================================================
-      # COMMIT AND PUSH PAGES
+      # COMMIT AND PUSH
       # ==================================================
 
       - name: Commit and push pages
+        working-directory: pages-repo
         run: |
-
-          cd pages-repo
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
