@@ -177,7 +177,7 @@ jobs:
           rm -rf quartz-build/content
           mkdir -p quartz-build/content
 
-          cp -r notes-source/content/. quartz-build/content/
+          cp -r notes-source/. quartz-build/content/
 
       - name: Install Quartz dependencies
         if: ${{ inputs.notes_only != true }}
