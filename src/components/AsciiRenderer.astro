@@ -1,0 +1,13 @@
+---
+---
+
+<div class="ascii-renderer">
+  <canvas></canvas>
+</div>
+<script>
+  import initAsciiRenderer from "../scripts/ascii-renderer";
+
+  document.querySelectorAll<HTMLElement>(".ascii-renderer").forEach((ascii) => {
+    initAsciiRenderer(ascii);
+  });
+</script>
